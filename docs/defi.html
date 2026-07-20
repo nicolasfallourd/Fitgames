@@ -23,7 +23,16 @@
       background: rgba(255,255,255,0.07); border-radius: 22px;
       padding: 26px 22px; max-width: 420px; width: 100%; margin-bottom: 26px;
     }
-    .swords { font-size: 52px; margin-bottom: 10px; }
+    /* La photo du challenger : la preuve que c'est bien ton pote */
+    .avatar {
+      width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 12px;
+      background: linear-gradient(135deg, #4d4d4d, #2e2e2e);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px; font-weight: 900; color: rgba(255,255,255,0.75);
+      overflow: hidden; border: 3px solid rgba(146,228,120,0.8);
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .swords { font-size: 40px; margin-bottom: 8px; }
     .title { font-size: 24px; font-weight: 900; margin-bottom: 10px; }
     .program { font-size: 17px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 8px; }
     .chrono { font-size: 15px; font-weight: 700; color: #f5a623; }
@@ -40,7 +49,8 @@
   <div class="logo">Fitgames</div>
 
   <div class="card">
-    <div class="swords">⚔️</div>
+    <div class="avatar" id="avatar" style="display:none"></div>
+    <div class="swords" id="swords">⚔️</div>
     <div class="title" id="title">Tu as reçu un défi !</div>
     <div class="program" id="program"></div>
     <div class="chrono" id="chrono"></div>
@@ -72,15 +82,40 @@
       }).then(function (r) { return r.json(); }).then(function (rows) {
         var invite = rows && rows[0];
         if (!invite) return;
-        document.getElementById("title").textContent = "⚡ " + invite.challenger_name + " te défie !";
-        if (invite.items && invite.items.length) {
-          document.getElementById("program").textContent = invite.items.map(function (item) {
-            var name = NAMES[item.exercise] || item.exercise;
-            return item.exercise === "plank" ? name + " " + item.goal + " s" : name + " ×" + item.goal;
-          }).join(" · ");
+        document.getElementById("title").textContent = invite.challenger_name + " te défie !";
+        // Sa photo de profil (ou son initiale) : le destinataire voit que
+        // c'est bien son pote derrière le lien
+        var avatar = document.getElementById("avatar");
+        avatar.style.display = "flex";
+        document.getElementById("swords").style.display = "none";
+        if (invite.avatar_url) {
+          var img = document.createElement("img");
+          img.src = invite.avatar_url;
+          img.alt = invite.challenger_name;
+          img.onerror = function () {
+            avatar.textContent = (invite.challenger_name || "?").charAt(0).toUpperCase();
+          };
+          avatar.appendChild(img);
+        } else {
+          avatar.textContent = (invite.challenger_name || "?").charAt(0).toUpperCase();
         }
-        if (invite.score) {
-          document.getElementById("chrono").textContent = "Son chrono : " + invite.score + " s. Fais mieux.";
+        if (invite.kind === "max" && invite.exercise && invite.score) {
+          // Défi d'ego : bats son record
+          var exo = NAMES[invite.exercise] || invite.exercise;
+          document.getElementById("program").textContent = invite.exercise === "plank"
+            ? "Son record : " + invite.score + " s de planche"
+            : "Son record : " + invite.score + " " + exo.toLowerCase();
+          document.getElementById("chrono").textContent = "Tu crois que tu peux faire mieux ?";
+        } else {
+          if (invite.items && invite.items.length) {
+            document.getElementById("program").textContent = invite.items.map(function (item) {
+              var name = NAMES[item.exercise] || item.exercise;
+              return item.exercise === "plank" ? name + " " + item.goal + " s" : name + " ×" + item.goal;
+            }).join(" · ");
+          }
+          if (invite.score) {
+            document.getElementById("chrono").textContent = "Son chrono : " + invite.score + " s. Fais mieux.";
+          }
         }
       }).catch(function () {});
     }
