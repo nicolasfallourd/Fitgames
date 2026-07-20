@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tu as reçu un défi · Fitgames</title>
+  <!-- Preview du lien dans Messages / WhatsApp -->
+  <meta property="og:title" content="⚔️ Tu as reçu un défi sur Fitgames !">
+  <meta property="og:description" content="Un pote te défie. Télécharge l'app et fais mieux que lui.">
+  <meta property="og:image" content="https://nicolasfallourd.github.io/Fitgames/og-defi.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d0d0d; color: #fff; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; text-align: center; padding: 28px;
+    }
+    .logo { font-size: 40px; font-weight: 900; letter-spacing: -1px; margin-bottom: 26px; }
+    .card {
+      background: rgba(255,255,255,0.07); border-radius: 22px;
+      padding: 26px 22px; max-width: 420px; width: 100%; margin-bottom: 26px;
+    }
+    .swords { font-size: 52px; margin-bottom: 10px; }
+    .title { font-size: 24px; font-weight: 900; margin-bottom: 10px; }
+    .program { font-size: 17px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 8px; }
+    .chrono { font-size: 15px; font-weight: 700; color: #f5a623; }
+    .hint { font-size: 14px; color: rgba(255,255,255,0.55); margin-top: 10px; }
+    .go {
+      display: block; width: 100%; max-width: 420px; border: none; cursor: pointer;
+      background: #92E478; color: #14270F; font-size: 20px; font-weight: 900;
+      padding: 18px; border-radius: 28px; font-family: inherit;
+    }
+    .small { margin-top: 16px; font-size: 12px; color: rgba(255,255,255,0.4); max-width: 420px; }
+  </style>
+</head>
+<body>
+  <div class="logo">Fitgames</div>
+
+  <div class="card">
+    <div class="swords">⚔️</div>
+    <div class="title" id="title">Tu as reçu un défi !</div>
+    <div class="program" id="program"></div>
+    <div class="chrono" id="chrono"></div>
+    <div class="hint">Télécharge l'app, ton défi t'attend à l'ouverture.</div>
+  </div>
+
+  <button class="go" id="go">Relever le défi 💪</button>
+  <div class="small">Le bouton copie ton code de défi puis ouvre l'App Store. À l'ouverture de Fitgames, le défi se retrouve tout seul.</div>
+
+  <script>
+    var APPSTORE = "https://apps.apple.com/fr/app/fitgames/id6789657245";
+    var SUPABASE = "https://zlmhpdvujvddbxevjpcc.supabase.co";
+    var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbWhwZHZ1anZkZGJ4ZXZqcGNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDIzMDMsImV4cCI6MjA5OTI3ODMwM30._K54BG2EPNwIkKEUgaXed-vO1UeErj5G9eF5y7lmS2I";
+    var NAMES = {
+      squat: "Squats", pushup: "Pompes", burpee: "Burpees",
+      jumpingJack: "Jumping jacks", lunge: "Fentes", jumpSquat: "Squats sautés",
+      highKnees: "Montées de genoux", buttKicks: "Talons-fesses",
+      mountainClimber: "Mountain climbers", russianTwist: "Russian twists", plank: "Planche"
+    };
+
+    var code = (new URLSearchParams(location.search).get("c") || "").toUpperCase();
+
+    // Affiche le détail du défi (nom du challenger, série, chrono)
+    if (code) {
+      fetch(SUPABASE + "/rest/v1/rpc/get_invite", {
+        method: "POST",
+        headers: { "apikey": ANON, "Authorization": "Bearer " + ANON, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_code: code })
+      }).then(function (r) { return r.json(); }).then(function (rows) {
+        var invite = rows && rows[0];
+        if (!invite) return;
+        document.getElementById("title").textContent = "⚡ " + invite.challenger_name + " te défie !";
+        if (invite.items && invite.items.length) {
+          document.getElementById("program").textContent = invite.items.map(function (item) {
+            var name = NAMES[item.exercise] || item.exercise;
+            return item.exercise === "plank" ? name + " " + item.goal + " s" : name + " ×" + item.goal;
+          }).join(" · ");
+        }
+        if (invite.score) {
+          document.getElementById("chrono").textContent = "Son chrono : " + invite.score + " s. Fais mieux.";
+        }
+      }).catch(function () {});
+    }
+
+    // Un TAP : copie le code dans le presse-papier (geste utilisateur
+    // obligatoire pour le clipboard sur iOS) puis file vers l'App Store
+    document.getElementById("go").addEventListener("click", function () {
+      var payload = "fitgames://defi/" + code;
+      function done() { location.href = APPSTORE; }
+      if (code && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(payload).then(done, function () {
+          fallbackCopy(payload); done();
+        });
+      } else {
+        if (code) fallbackCopy(payload);
+        done();
+      }
+    });
+
+    function fallbackCopy(text) {
+      try {
+        var area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        document.body.removeChild(area);
+      } catch (e) {}
+    }
+  </script>
+</body>
+</html>
