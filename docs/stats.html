@@ -86,6 +86,8 @@
 
     <div class="tiles" id="tiles"></div>
 
+    <div class="tiles" id="tilesRetention"></div>
+
     <div class="card">
       <h2>Utilisateurs actifs par jour · 14 jours</h2>
       <div class="chart-wrap" id="chartActives"></div>
@@ -225,11 +227,22 @@
 
       document.getElementById("tiles").innerHTML =
         tile(s.users_total, "utilisateurs", "+" + s.users_new_7d + " sur 7 j") +
-        tile(s.active_7d, "actifs sur 7 j") +
         tile(s.activation_10min_pct + " %", "1er set ≤ 10 min", s.never_tried + " n'ont jamais essayé") +
         tile(s.invites_claimed + "/" + s.invites_created, "invites SMS réclamées") +
         tile(s.battles_finished + "/" + s.battles_total, "battles jouées") +
         tile(s.dms_total + " · " + s.chat_total, "DMs · vestiaires");
+
+      // Actif = toute action dans l'app (set, défi, DM, vestiaires, trace)
+      var r = s.retention || {};
+      function pct(p) { return (p === null || p === undefined) ? "—" : p + " %"; }
+      document.getElementById("tilesRetention").innerHTML =
+        tile(s.dau, "DAU", "actifs aujourd'hui") +
+        tile(s.wau, "WAU", "actifs sur 7 jours") +
+        tile(s.mau, "MAU", "actifs sur 30 jours") +
+        tile(pct(r.d1_pct), "rétention D1", "revenus le lendemain · " + r.d1_n + " éligibles") +
+        tile(pct(r.d7_pct), "rétention D7", "actifs entre J+7 et J+13 · " + r.d7_n + " éligibles") +
+        tile(pct(r.d30_pct), "rétention D30",
+             r.d30_n ? "actifs entre J+30 et J+44 · " + r.d30_n + " éligibles" : "encore trop tôt");
 
       barChart(document.getElementById("chartActives"), s.daily, "#3987e5", "actives");
       barChart(document.getElementById("chartSets"), s.daily, "#199e70", "sets");
