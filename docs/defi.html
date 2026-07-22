@@ -122,18 +122,32 @@
       }).catch(function () {});
     }
 
-    // Un TAP : copie le code dans le presse-papier (geste utilisateur
-    // obligatoire pour le clipboard sur iOS) puis file vers l'App Store
+    // Un TAP, en cascade :
+    // 1. copie le code dans le presse-papier (geste utilisateur obligatoire)
+    // 2. tente d'ouvrir l'app DIRECTEMENT (fitgames:// : si elle est
+    //    installée, iOS bascule dessus et le défi arrive par le lien)
+    // 3. si rien ne s'ouvre en 1,2 s, l'app n'est pas là → App Store
+    //    (le code attend dans le presse-papier pour l'onboarding)
     document.getElementById("go").addEventListener("click", function () {
       var payload = "fitgames://defi/" + code;
-      function done() { location.href = APPSTORE; }
+      function toStore() { location.href = APPSTORE; }
+      function tryApp() {
+        if (!code) { toStore(); return; }
+        var timer = setTimeout(toStore, 1200);
+        function cancel() { clearTimeout(timer); }
+        window.addEventListener("pagehide", cancel, { once: true });
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) cancel();
+        }, { once: true });
+        location.href = payload;
+      }
       if (code && navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(payload).then(done, function () {
-          fallbackCopy(payload); done();
+        navigator.clipboard.writeText(payload).then(tryApp, function () {
+          fallbackCopy(payload); tryApp();
         });
       } else {
         if (code) fallbackCopy(payload);
-        done();
+        tryApp();
       }
     });
 
