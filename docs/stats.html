@@ -67,6 +67,22 @@
             background: var(--surface-2); font-size: 11px; color: var(--text-secondary); margin: 2px 4px 2px 0; }
     .refresh { background: none; border: 1px solid var(--grid); color: var(--text-secondary);
                border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+
+    /* Tunnel : barres horizontales, une seule teinte (une seule série, donc
+       pas de légende — le libellé de chaque étape EST l'identité). Le rail
+       gris derrière porte le 100 % : sans lui on ne voit pas ce qu'on perd. */
+    .fstage { margin-bottom: 12px; }
+    .fhead { display: flex; justify-content: space-between; align-items: baseline;
+             gap: 10px; margin-bottom: 5px; }
+    .fhead .fl { font-size: 12px; color: var(--text-secondary); }
+    .fhead .fv { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .fhead .fp { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+    .ftrack { background: var(--surface-2); border-radius: 5px; height: 24px; overflow: hidden; }
+    .fbar { height: 100%; border-radius: 4px; background: var(--series-1); min-width: 3px; }
+    .fdrop { font-size: 11px; color: var(--text-muted); margin: -6px 0 10px; padding-left: 2px; }
+    .fnote { font-size: 12px; color: var(--text-secondary); margin-top: 14px;
+             padding-top: 12px; border-top: 1px solid var(--grid); line-height: 1.5; }
+    .fnote b { color: var(--text-primary); }
   </style>
 </head>
 <body>
@@ -87,6 +103,12 @@
     <div class="tiles" id="tiles"></div>
 
     <div class="tiles" id="tilesRetention"></div>
+
+    <div class="card">
+      <h2>Tunnel des défis SMS · 30 jours</h2>
+      <div id="funnel"></div>
+      <div class="fnote" id="funnelNote"></div>
+    </div>
 
     <div class="card">
       <h2>Utilisateurs actifs par jour · 14 jours</h2>
@@ -211,6 +233,63 @@
       svgEl.addEventListener("mouseleave", function () { tip.style.display = "none"; });
     }
 
+    // Tunnel : 4 étapes, barres horizontales proportionnelles à la PREMIÈRE
+    // (les codes envoyés = le 100 %). Une seule teinte : c'est une seule
+    // série mesurée à quatre moments, pas quatre catégories.
+    // Chaque barre est étiquetée directement — sur 4 marques c'est plus
+    // lisible qu'un survol, et ça reste vrai sur une capture d'écran.
+    function funnelChart(mount, noteMount, f) {
+      if (!f) { mount.innerHTML = ""; return; }
+      var base = Math.max(1, f.sent);
+      var stages = [
+        { l: "Codes envoyés", v: f.sent, d: "défis SMS créés dans l'app" },
+        { l: "Pages ouvertes", v: f.viewed, d: "le SMS est devenu une visite" },
+        { l: "Clics « Relever le défi »", v: f.clicked, d: "la page a convaincu" },
+        { l: "Codes récupérés dans l'app", v: f.claimed, d: "la cascade est allée au bout" }
+      ];
+      var html = "";
+      stages.forEach(function (s, i) {
+        // Entier : à 30 codes envoyés, la décimale est du faux détail
+        var pct = Math.round(100 * s.v / base);
+        html += '<div class="fstage">'
+              + '<div class="fhead"><span class="fl">' + s.l + '</span>'
+              + '<span class="fv">' + s.v + ' <span class="fp">· ' + pct + ' %</span></span></div>'
+              + '<div class="ftrack" title="' + s.d + '">'
+              + '<div class="fbar" style="width:' + Math.max(0.4, 100 * s.v / base) + '%"></div>'
+              + "</div></div>";
+        var next = stages[i + 1];
+        if (next && s.v > 0) {
+          var lost = s.v - next.v;
+          if (lost > 0) {
+            html += '<div class="fdrop">↳ ' + lost + " perdus ici ("
+                  + Math.round(100 * lost / s.v) + " %)</div>";
+          }
+        }
+      });
+      mount.innerHTML = html;
+
+      // LA comparaison qui tranche : après le clic, deux chemins très
+      // différents. Si « app déjà installée » convertit bien et « App Store »
+      // non, la perte n'est pas dans le lien mais dans l'aller-retour.
+      function rate(ok, n) { return n ? Math.round(100 * ok / n) + " %" : "—"; }
+      var direct = '<b>App déjà installée</b> : ' + f.direct_claimed + "/" + f.direct_n
+                 + " récupérés (" + rate(f.direct_claimed, f.direct_n) + ")";
+      var store = '<b>Passage par l\'App Store</b> : ' + f.store_claimed + "/" + f.store_n
+                + " récupérés (" + rate(f.store_claimed, f.store_n) + ")";
+      var verdict = "";
+      if (f.direct_n && f.store_n) {
+        var dr = f.direct_claimed / f.direct_n, sr = f.store_claimed / f.store_n;
+        verdict = dr - sr > 0.2
+          ? "<br>→ la perte est bien dans l'aller-retour par le Store, pas dans le lien."
+          : (sr - dr > 0.2
+             ? "<br>→ contre-intuitif : c'est le lien direct qui perd. À regarder côté scheme."
+             : "<br>→ les deux chemins se valent : la perte est avant le clic.");
+      } else {
+        verdict = "<br>→ pas encore assez de clics pour comparer les deux chemins.";
+      }
+      noteMount.innerHTML = direct + " &nbsp;·&nbsp; " + store + verdict;
+    }
+
     async function load() {
       var key = storedKey();
       if (!key) { showGate(""); return; }
@@ -243,6 +322,10 @@
         tile(pct(r.d7_pct), "rétention D7", "actifs entre J+7 et J+13 · " + r.d7_n + " éligibles") +
         tile(pct(r.d30_pct), "rétention D30",
              r.d30_n ? "actifs entre J+30 et J+44 · " + r.d30_n + " éligibles" : "encore trop tôt");
+
+      funnelChart(document.getElementById("funnel"),
+                  document.getElementById("funnelNote"),
+                  s.invite_funnel);
 
       barChart(document.getElementById("chartActives"), s.daily, "#3987e5", "actives");
       barChart(document.getElementById("chartSets"), s.daily, "#199e70", "sets");

@@ -75,6 +75,30 @@
 
     var code = (new URLSearchParams(location.search).get("c") || "").toUpperCase();
 
+    // ---- Tunnel de conversion -------------------------------------------
+    // Trois étapes suffisent à savoir OÙ on perd les gens :
+    //   page_view      : le SMS est devenu une page ouverte
+    //   cta_click      : la page a convaincu
+    //   store_redirect : la cascade a expiré → l'app n'était pas installée
+    // La 4e étape (code réclamé) se lit en base sur `invites.claimed_by` :
+    // elle se passe dans l'app, pas ici.
+    //
+    // `keepalive` n'est pas décoratif : sans lui, Safari tue la requête au
+    // moment où la page part vers l'App Store, et le `store_redirect` — la
+    // mesure la plus intéressante des trois — ne serait jamais enregistré.
+    function track(event) {
+      try {
+        fetch(SUPABASE + "/rest/v1/rpc/log_invite_event", {
+          method: "POST",
+          keepalive: true,
+          headers: { "apikey": ANON, "Authorization": "Bearer " + ANON, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_code: code, p_event: event })
+        }).catch(function () {});
+      } catch (e) {}
+    }
+
+    track("page_view");
+
     // Affiche le détail du défi (nom du challenger, série, chrono)
     if (code) {
       fetch(SUPABASE + "/rest/v1/rpc/get_invite", {
@@ -129,8 +153,9 @@
     // 3. si rien ne s'ouvre en 1,2 s, l'app n'est pas là → App Store
     //    (le code attend dans le presse-papier pour l'onboarding)
     document.getElementById("go").addEventListener("click", function () {
+      track("cta_click");
       var payload = "fitgames://defi/" + code;
-      function toStore() { location.href = APPSTORE; }
+      function toStore() { track("store_redirect"); location.href = APPSTORE; }
       function tryApp() {
         if (!code) { toStore(); return; }
         var timer = setTimeout(toStore, 1200);
