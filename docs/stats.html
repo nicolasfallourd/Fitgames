@@ -112,6 +112,12 @@
     <div class="tiles" id="tilesRetention"></div>
 
     <div class="card">
+      <h2>Stockage</h2>
+      <div class="tiles" id="tilesStorage" style="margin-bottom:0"></div>
+      <div class="fnote" id="storageNote"></div>
+    </div>
+
+    <div class="card">
       <h2>Tunnel des défis SMS · 30 jours</h2>
       <div id="funnel"></div>
       <div class="fnote" id="funnelNote"></div>
@@ -248,6 +254,43 @@
         tip.textContent = d.day + " · " + d[valueKey];
       });
       svgEl.addEventListener("mouseleave", function () { tip.style.display = "none"; });
+    }
+
+    function bytes(n) {
+      if (n === null || n === undefined) return "—";
+      var u = ["o", "Ko", "Mo", "Go"], i = 0;
+      while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+      return (n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)) + " " + u[i];
+    }
+
+    // Stockage : PAS de graphique. Une jauge sur « 0,3 % de 8 Go » ne dirait
+    // rien de plus que le chiffre, et l'information qui compte n'est pas le
+    // remplissage actuel mais la DATE à laquelle ça devient un problème.
+    // Le disque Supabase ne rétrécit jamais tout seul : c'est la projection
+    // qu'il faut regarder, pas la barre.
+    function storageBlock(st) {
+      if (!st) return;
+      var pct = Math.round(1000 * st.db_bytes / st.disk_included_bytes) / 10;
+      var years = st.days_to_full ? (st.days_to_full / 365) : null;
+      var horizon = st.days_to_full === null || st.days_to_full === undefined ? "—"
+                  : (years >= 2 ? Math.round(years) + " ans"
+                                : Math.round(st.days_to_full) + " j");
+      document.getElementById("tilesStorage").innerHTML =
+        tile(bytes(st.db_bytes), "base de données", pct + " % des 8 Go inclus") +
+        tile(bytes(st.traces_bytes), "traces de détection",
+             st.traces_n + " sets · " + bytes(st.avg_trace_bytes) + " l'unité") +
+        tile(st.skeleton_pct + " %", "de squelettes", "la part purgeable après 90 j") +
+        tile(horizon, "avant les 8 Go", "au rythme actuel") +
+        tile(bytes(st.bytes_per_day) + "/j", "croissance", "moyenne sur 14 jours");
+
+      var prune = st.last_prune
+        ? "Dernière purge le " + new Date(st.last_prune.at).toLocaleDateString("fr-FR")
+          + " : " + st.last_prune.pruned + " traces allégées, " + bytes(st.last_prune.freed_bytes) + " libérés."
+        : "Purge programmée tous les jours à 4 h 17, mais aucune trace n'a encore 90 jours.";
+      document.getElementById("storageNote").innerHTML =
+        prune + " <b>" + st.protected_n + "</b> traces protégées (labellisées 👍👎 ou marquées corpus)."
+        + "<br>→ au-delà de 8 Go c'est 0,125 $/Go/mois. Le disque ne rétrécit jamais tout seul :"
+        + " c'est la colonne « avant les 8 Go » qu'il faut surveiller, pas le pourcentage.";
     }
 
     // Barres EMPILÉES : le total du jour est la question principale (est-ce
@@ -433,6 +476,8 @@
         tile(pct(r.d7_pct), "rétention D7", "actifs entre J+7 et J+13 · " + r.d7_n + " éligibles") +
         tile(pct(r.d30_pct), "rétention D30",
              r.d30_n ? "actifs entre J+30 et J+44 · " + r.d30_n + " éligibles" : "encore trop tôt");
+
+      storageBlock(s.storage);
 
       funnelChart(document.getElementById("funnel"),
                   document.getElementById("funnelNote"),
