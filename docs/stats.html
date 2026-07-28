@@ -48,21 +48,6 @@
     th { text-align: left; color: var(--text-muted); font-size: 11px; font-weight: 600;
          padding: 6px 8px; border-bottom: 1px solid var(--grid); }
     td { padding: 7px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
-    /* Provenance : la pastille porte un mot, jamais une couleur seule */
-    .chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px;
-            border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
-    .chip.invite { color: var(--accent); }
-    .chip.direct { color: var(--text-secondary); }
-    .muted { color: var(--text-muted); }
-    .note { color: var(--text-muted); font-size: 11.5px; line-height: 1.6; margin-top: 10px; }
-    /* Onglets : le dashboard répond à deux questions différentes (comment ça va /
-       qui arrive), les empiler dans une seule page les noie l'une dans l'autre. */
-    .tabs { display: inline-flex; gap: 3px; background: var(--surface-1); border-radius: 99px;
-            padding: 3px; margin-bottom: 18px; }
-    .tabs button { background: none; border: none; border-radius: 99px; padding: 8px 18px;
-                   font: inherit; font-size: 13px; font-weight: 700; color: var(--text-muted);
-                   cursor: pointer; }
-    .tabs button[aria-selected="true"] { background: var(--accent); color: var(--surface-0); }
     td:not(:first-child), th:not(:first-child) { text-align: right; }
     details { margin-top: 10px; }
     summary { font-size: 12px; color: var(--text-muted); cursor: pointer; }
@@ -105,6 +90,17 @@
     .legend span { display: inline-flex; align-items: center; gap: 6px;
                    font-size: 11px; color: var(--text-secondary); }
     .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    /* Section #users */
+    .anchor { scroll-margin-top: 16px; }
+    .step-pill { display: inline-block; padding: 2px 9px; border-radius: 999px;
+                 font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .step-done { background: rgba(12,163,12,0.18); color: #7ddc7d; }
+    .step-stuck { background: rgba(208,59,59,0.15); color: #f09a9a; }
+    .step-mid { background: var(--surface-2); color: var(--text-secondary); }
+    .who { max-height: 460px; overflow-y: auto; }
+    .who td:first-child { font-weight: 700; }
+    .via { font-size: 11px; color: var(--text-muted); font-weight: 500; }
   </style>
 </head>
 <body>
@@ -122,12 +118,6 @@
       <button class="refresh" onclick="load()" style="margin-left:8px">Rafraîchir</button>
     </div>
 
-    <nav class="tabs" role="tablist">
-      <button role="tab" aria-selected="true" data-tab="overview" onclick="showTab('overview')">Vue d'ensemble</button>
-      <button role="tab" aria-selected="false" data-tab="users" onclick="showTab('users')">Derniers inscrits</button>
-    </nav>
-
-    <div id="tab-overview">
     <div class="tiles" id="tiles"></div>
 
     <div class="tiles" id="tilesRetention"></div>
@@ -185,6 +175,26 @@
       </div>
     </div>
 
+    <section id="users" class="anchor">
+      <div class="card">
+        <h2>Tunnel d'inscription · de l'ouverture au premier défi</h2>
+        <div id="signupFunnel"></div>
+        <div class="fnote" id="signupNote"></div>
+      </div>
+
+      <div class="card">
+        <h2>Où chacun s'est arrêté</h2>
+        <div class="who">
+          <table id="dropoff">
+            <thead><tr>
+              <th>Qui</th><th>Inscrit</th><th>Vu pour la dernière fois</th><th>Dernière marche</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <details class="card">
       <summary>Les chiffres jour par jour (table)</summary>
       <table id="dailyTable">
@@ -193,35 +203,11 @@
         <tbody></tbody>
       </table>
     </details>
-    </div>
-
-    <div id="tab-users" style="display:none">
-      <div class="card">
-        <h2>Derniers inscrits</h2>
-        <table id="recent">
-          <thead><tr><th>Qui</th><th>Quand</th><th>D'où il vient</th><th>A joué ?</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="note" id="recentNote"></div>
-      </div>
-    </div>
   </div>
 
   <script>
     var SUPABASE = "https://zlmhpdvujvddbxevjpcc.supabase.co";
     var ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbWhwZHZ1anZkZGJ4ZXZqcGNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDIzMDMsImV4cCI6MjA5OTI3ODMwM30._K54BG2EPNwIkKEUgaXed-vO1UeErj5G9eF5y7lmS2I";
-
-    // L'onglet vit dans le hash : un lien vers #users ouvre directement la bonne vue,
-    // et un rafraîchissement ne renvoie pas l'utilisateur au début.
-    function showTab(name) {
-      ["overview", "users"].forEach(function (t) {
-        document.getElementById("tab-" + t).style.display = t === name ? "block" : "none";
-      });
-      document.querySelectorAll(".tabs button").forEach(function (b) {
-        b.setAttribute("aria-selected", String(b.dataset.tab === name));
-      });
-      if (location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
-    }
 
     function storedKey() { return localStorage.getItem("fitgames.dashKey") || ""; }
 
@@ -238,70 +224,6 @@
       });
       if (!r.ok) throw new Error("refusé");
       return r.json();
-    }
-
-    // Chargé à part : une erreur ici ne doit pas priver le dashboard de tout le reste.
-    async function fetchRecent(key) {
-      var r = await fetch(SUPABASE + "/rest/v1/rpc/get_recent_users", {
-        method: "POST",
-        headers: { "apikey": ANON, "Authorization": "Bearer " + ANON, "Content-Type": "application/json" },
-        body: JSON.stringify({ p_key: key, p_limit: 25 })
-      });
-      if (!r.ok) throw new Error("refusé");
-      return r.json();
-    }
-
-    function ago(iso) {
-      var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-      if (m < 60) return "il y a " + m + " min";
-      if (m < 60 * 24) return "il y a " + Math.round(m / 60) + " h";
-      return "il y a " + Math.round(m / 1440) + " j";
-    }
-
-    function esc(t) {
-      return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) {
-        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
-      });
-    }
-
-    // Un délai en minutes reste lisible jusqu'à une heure ; au-delà, "4125 min" ne dit
-    // plus rien à personne.
-    function delay(from, to) {
-      var m = Math.max(1, Math.round((new Date(to) - new Date(from)) / 60000));
-      if (m < 60) return m + " min";
-      if (m < 60 * 24) return Math.round(m / 60) + " h";
-      return Math.round(m / 1440) + " j";
-    }
-
-    function renderRecent(users) {
-      var body = document.querySelector("#recent tbody");
-      if (!users || !users.length) { body.innerHTML = '<tr><td colspan="4" class="muted">Personne pour l\'instant.</td></tr>'; return; }
-      body.innerHTML = users.map(function (u) {
-        var invited = u.source === "invite";
-        var label = invited
-          ? "Invitation" + (u.kind === "max" ? " (défi de max)" : "")
-          : "Direct";
-        var detail = invited
-          ? "par " + esc(u.by)
-          : "App Store ou pub";
-        var played = u.active
-          ? (u.first_action ? "oui, " + delay(u.at, u.first_action) + " après" : "oui")
-          : "rien fait";
-        return '<tr><td>' + esc(u.name) + '</td>'
-             + '<td class="muted">' + new Date(u.at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
-             + ' · ' + ago(u.at) + '</td>'
-             + '<td><span class="chip ' + (invited ? "invite" : "direct") + '">' + label + '</span> '
-             + '<span class="muted">' + detail + '</span></td>'
-             + '<td class="' + (u.active ? "" : "muted") + '">' + played + '</td></tr>';
-      }).join("");
-
-      var directs = users.filter(function (u) { return u.source !== "invite"; }).length;
-      document.getElementById("recentNote").innerHTML =
-        "<strong>" + (users.length - directs) + " par invitation, " + directs + " en direct.</strong> "
-        + "« Direct » ne veut pas dire « organique » : App Store et publicité y sont mélangés, et "
-        + "c'est structurel — SKAdNetwork n'identifie jamais la personne, c'est tout son objet. "
-        + "Aucun outil ne peut donc dire « cet utilisateur-là vient d'une pub ». Ce qui se mesure, "
-        + "c'est le niveau des inscriptions directes avant et pendant les campagnes.";
     }
 
     function tile(value, label, detail) {
@@ -363,6 +285,78 @@
         tip.textContent = d.day + " · " + d[valueKey];
       });
       svgEl.addEventListener("mouseleave", function () { tip.style.display = "none"; });
+    }
+
+    // ---- Section #users --------------------------------------------------
+
+    async function fetchUsersPage(key) {
+      var r = await fetch(SUPABASE + "/rest/v1/rpc/get_users_page", {
+        method: "POST",
+        headers: { "apikey": ANON, "Authorization": "Bearer " + ANON, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_key: key })
+      });
+      if (!r.ok) throw new Error("refusé");
+      return r.json();
+    }
+
+    function shortDate(iso) {
+      var d = new Date(iso);
+      var days = Math.round((Date.now() - d) / 86400000);
+      if (days === 0) return "aujourd'hui";
+      if (days === 1) return "hier";
+      if (days < 30) return "il y a " + days + " j";
+      return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    }
+
+    // Même forme que le tunnel SMS : barres horizontales, une seule teinte,
+    // rail gris pour le 100 %, perte annotée entre chaque marche. C'est une
+    // seule série mesurée à onze moments, pas onze catégories.
+    function signupFunnel(steps, instrumented) {
+      var mount = document.getElementById("signupFunnel");
+      var note = document.getElementById("signupNote");
+      if (!steps || !steps.length) { mount.innerHTML = ""; return; }
+      var base = Math.max(1, steps[0].devices);
+      var html = "";
+      steps.forEach(function (s, i) {
+        var pct = Math.round(100 * s.devices / base);
+        html += '<div class="fstage">'
+              + '<div class="fhead"><span class="fl">' + s.rank + ". " + s.label + "</span>"
+              + '<span class="fv">' + s.devices + ' <span class="fp">· ' + pct + ' %</span></span></div>'
+              + '<div class="ftrack"><div class="fbar" style="width:'
+              + Math.max(0.4, 100 * s.devices / base) + '%"></div></div></div>';
+        var next = steps[i + 1];
+        if (next && s.devices > 0) {
+          var lost = s.devices - next.devices;
+          if (lost > 0) {
+            html += '<div class="fdrop">↳ ' + lost + " perdus ici ("
+                  + Math.round(100 * lost / s.devices) + " %)</div>";
+          }
+        }
+      });
+      mount.innerHTML = html;
+
+      note.innerHTML = instrumented > 0
+        ? "<b>" + instrumented + "</b> appareils instrumentés. Compté en APPAREILS et pas en comptes :"
+          + " les trois premières marches se produisent avant qu'un compte existe,"
+          + " c'est-à-dire avant l'endroit où on perd le plus de monde."
+        : "⏳ <b>Aucun événement pour l'instant</b> — la version instrumentée n'est pas déployée."
+          + " Le tableau ci-dessous, lui, fonctionne déjà : il déduit la dernière marche"
+          + " atteinte à partir des données existantes (sets, traces, comptes).";
+    }
+
+    function dropoffTable(users) {
+      var body = document.querySelector("#dropoff tbody");
+      if (!users || !users.length) { body.innerHTML = ""; return; }
+      body.innerHTML = users.map(function (u) {
+        // Vert = arrivé au bout. Rouge = jamais sorti de l'inscription.
+        // Gris = quelque part au milieu, c'est là qu'on a du travail.
+        var cls = u.done ? "step-done" : (u.rank <= 3 ? "step-stuck" : "step-mid");
+        return "<tr><td>" + u.name
+             + ' <span class="via">' + (u.provider === "apple" ? "Apple" : "email") + "</span></td>"
+             + "<td>" + shortDate(u.signed_up) + "</td>"
+             + "<td>" + shortDate(u.last_seen) + "</td>"
+             + '<td><span class="step-pill ' + cls + '">' + u.rank + ". " + u.label + "</span></td></tr>";
+      }).join("");
     }
 
     function bytes(n) {
@@ -564,15 +558,8 @@
       }
       document.getElementById("gate").style.display = "none";
       document.getElementById("app").style.display = "block";
-      showTab(location.hash.slice(1) === "users" ? "users" : "overview");
       document.getElementById("stamp").textContent =
         "Généré le " + new Date(s.generated_at).toLocaleString("fr-FR");
-
-      // Volontairement non bloquant : le reste du dashboard s'affiche même si ça échoue.
-      fetchRecent(key).then(renderRecent).catch(function () {
-        document.querySelector("#recent tbody").innerHTML =
-          '<tr><td colspan="4" class="muted">Liste indisponible.</td></tr>';
-      });
 
       document.getElementById("tiles").innerHTML =
         tile(s.users_total, "utilisateurs", "+" + s.users_new_7d + " sur 7 j") +
@@ -594,6 +581,17 @@
              r.d30_n ? "actifs entre J+30 et J+44 · " + r.d30_n + " éligibles" : "encore trop tôt");
 
       storageBlock(s.storage);
+
+      // Section #users : requête séparée, elle n'a rien à faire dans le
+      // calcul quotidien. Un échec ici ne doit pas vider le reste de la page.
+      try {
+        var up = await fetchUsersPage(key);
+        signupFunnel(up.funnel, up.instrumented_devices);
+        dropoffTable(up.users);
+      } catch (e) {
+        document.getElementById("signupNote").textContent =
+          "Section utilisateurs indisponible.";
+      }
 
       funnelChart(document.getElementById("funnel"),
                   document.getElementById("funnelNote"),
