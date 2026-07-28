@@ -68,6 +68,30 @@
     .refresh { background: none; border: 1px solid var(--grid); color: var(--text-secondary);
                border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
 
+    /* ONGLETS. Une seule rangée de contrôles au-dessus du contenu : le
+       dashboard tenait sur une page unique de 3 000 pixels, où le chiffre
+       le plus important se retrouvait au même niveau visuel que le poids
+       de la base. */
+    .tabs { display: flex; gap: 6px; margin: 4px 0 18px; overflow-x: auto;
+            padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+    .tabs button {
+      flex: none; border: 1px solid var(--grid); background: var(--surface-1);
+      color: var(--text-secondary); border-radius: 999px; cursor: pointer;
+      padding: 8px 16px; font-size: 13px; font-weight: 700; font-family: inherit;
+      white-space: nowrap;
+    }
+    .tabs button[aria-selected="true"] {
+      background: var(--accent); color: #14270F; border-color: var(--accent);
+    }
+    .panel { display: none; }
+    .panel.on { display: block; }
+
+    /* Le bandeau permanent : plus gros que les tuiles de détail, parce que
+       ces quatre chiffres-là se lisent avant tous les autres. */
+    #tilesKpi .tile { background: var(--surface-1); border: 1px solid var(--grid); }
+    #tilesKpi .v { font-size: 32px; }
+    #tilesKpi .v.accent { color: var(--accent); }
+
     /* Tunnel : barres horizontales, une seule teinte (une seule série, donc
        pas de légende — le libellé de chaque étape EST l'identité). Le rail
        gris derrière porte le 100 % : sans lui on ne voit pas ce qu'on perd. */
@@ -109,6 +133,15 @@
                font-variant-numeric: tabular-nums; color: var(--accent); }
     .hero .t { font-size: 13px; color: var(--text-secondary); max-width: 420px; line-height: 1.45; }
     .hero .t b { color: var(--text-primary); }
+
+    /* Sur téléphone, « Vu pour la dernière fois » saute : c'est la colonne
+       la moins utile des quatre, et la garder poussait « Dernière marche »
+       — celle qu'on vient lire — hors de l'écran. */
+    @media (max-width: 560px) {
+      #dropoff th:nth-child(3), #dropoff td:nth-child(3) { display: none; }
+      .hero .n { font-size: 44px; }
+      body { padding: 16px 14px; }
+    }
   </style>
 </head>
 <body>
@@ -126,66 +159,21 @@
       <button class="refresh" onclick="load()" style="margin-left:8px">Rafraîchir</button>
     </div>
 
-    <div class="tiles" id="tiles"></div>
+    <!-- Bandeau permanent : les quatre chiffres qui doivent être visibles
+         quel que soit l'onglet ouvert. Tout le reste est du détail. -->
+    <div class="tiles" id="tilesKpi"></div>
 
-    <div class="tiles" id="tilesRetention"></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="onboarding">Onboarding</button>
+      <button data-tab="activite">Activité</button>
+      <button data-tab="croissance">Croissance</button>
+      <button data-tab="technique">Technique</button>
+    </nav>
 
-    <div class="card">
-      <h2>Stockage</h2>
-      <div class="tiles" id="tilesStorage" style="margin-bottom:0"></div>
-      <div class="fnote" id="storageNote"></div>
-    </div>
-
-    <div class="card">
-      <h2>Tunnel des défis SMS · 30 jours</h2>
-      <div id="funnel"></div>
-      <div class="fnote" id="funnelNote"></div>
-    </div>
-
-    <div class="card">
-      <h2>Utilisateurs actifs par jour · 14 jours</h2>
-      <div class="chart-wrap" id="chartActives"></div>
-    </div>
-
-    <div class="card">
-      <h2>Sets par jour · 14 jours</h2>
-      <div class="chart-wrap" id="chartSets"></div>
-    </div>
-
-    <div class="card">
-      <h2>Messages par jour · 14 jours</h2>
-      <div class="legend">
-        <span><i style="background:#3987e5"></i>Messages privés</span>
-        <span><i style="background:#199e70"></i>Les vestiaires</span>
-      </div>
-      <div class="chart-wrap" id="chartMessages"></div>
-    </div>
-
-    <div class="card">
-      <h2>Cohortes par semaine d'inscription</h2>
-      <table id="cohorts">
-        <thead><tr>
-          <th>Semaine du</th><th>Inscrits</th><th>1er set ≤ 10 min</th>
-          <th>Ont essayé</th><th>Actifs cette semaine</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="row">
+    <!-- ============================ ONBOARDING ======================== -->
+    <div class="panel" data-panel="onboarding">
       <div class="card">
-        <h2>Détection · 7 derniers jours</h2>
-        <div id="detection"></div>
-      </div>
-      <div class="card">
-        <h2>Raisons d'abandon · 14 jours</h2>
-        <div id="aborts"></div>
-      </div>
-    </div>
-
-    <section id="onboarding" class="anchor">
-      <div class="card">
-        <h2>Onboarding · de l'installation au premier défi</h2>
+        <h2>De l'installation au premier défi</h2>
         <div class="hero">
           <div class="n" id="trueRate">—</div>
           <div class="t" id="trueRateText"></div>
@@ -202,16 +190,8 @@
           C'est la seule courbe que le produit doit faire monter.
         </div>
       </div>
-    </section>
 
-    <section id="users" class="anchor">
-      <div class="card">
-        <h2>Tunnel d'inscription · de l'ouverture au premier défi</h2>
-        <div id="signupFunnel"></div>
-        <div class="fnote" id="signupNote"></div>
-      </div>
-
-      <div class="card">
+      <div class="card anchor" id="users">
         <h2>Où chacun s'est arrêté</h2>
         <div class="who">
           <table id="dropoff">
@@ -222,16 +202,88 @@
           </table>
         </div>
       </div>
-    </section>
 
-    <details class="card">
-      <summary>Les chiffres jour par jour (table)</summary>
-      <table id="dailyTable">
-        <thead><tr><th>Jour</th><th>Actifs</th><th>Sets</th><th>Défis</th><th>Inscrits</th>
-          <th>DM</th><th>Vestiaires</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </details>
+      <details class="card">
+        <summary>Le tunnel détaillé, marche par marche (11 étapes)</summary>
+        <div id="signupFunnel" style="margin-top:14px"></div>
+        <div class="fnote" id="signupNote"></div>
+      </details>
+    </div>
+
+    <!-- ============================= ACTIVITÉ ========================= -->
+    <div class="panel" data-panel="activite">
+      <div class="tiles" id="tilesRetention"></div>
+
+      <div class="card">
+        <h2>Utilisateurs actifs par jour · 14 jours</h2>
+        <div class="chart-wrap" id="chartActives"></div>
+      </div>
+
+      <div class="card">
+        <h2>Sets par jour · 14 jours</h2>
+        <div class="chart-wrap" id="chartSets"></div>
+      </div>
+
+      <div class="card">
+        <h2>Messages par jour · 14 jours</h2>
+        <div class="legend">
+          <span><i style="background:#3987e5"></i>Messages privés</span>
+          <span><i style="background:#199e70"></i>Les vestiaires</span>
+        </div>
+        <div class="chart-wrap" id="chartMessages"></div>
+      </div>
+
+      <div class="card">
+        <h2>Cohortes par semaine d'inscription</h2>
+        <table id="cohorts">
+          <thead><tr>
+            <th>Semaine du</th><th>Inscrits</th><th>1er set ≤ 10 min</th>
+            <th>Ont essayé</th><th>Actifs cette semaine</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <details class="card">
+        <summary>Les chiffres jour par jour</summary>
+        <table id="dailyTable">
+          <thead><tr><th>Jour</th><th>Actifs</th><th>Sets</th><th>Défis</th><th>Inscrits</th>
+            <th>DM</th><th>Vestiaires</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </details>
+    </div>
+
+    <!-- ============================ CROISSANCE ======================== -->
+    <div class="panel" data-panel="croissance">
+      <div class="tiles" id="tilesGrowth"></div>
+
+      <div class="card">
+        <h2>Tunnel des défis SMS · 30 jours</h2>
+        <div id="funnel"></div>
+        <div class="fnote" id="funnelNote"></div>
+      </div>
+    </div>
+
+    <!-- ============================ TECHNIQUE ========================= -->
+    <div class="panel" data-panel="technique">
+      <div class="row">
+        <div class="card">
+          <h2>Détection · 7 derniers jours</h2>
+          <div id="detection"></div>
+        </div>
+        <div class="card">
+          <h2>Raisons d'abandon · 14 jours</h2>
+          <div id="aborts"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Stockage</h2>
+        <div class="tiles" id="tilesStorage" style="margin-bottom:0"></div>
+        <div class="fnote" id="storageNote"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -253,6 +305,36 @@
       });
       if (!r.ok) throw new Error("refusé");
       return r.json();
+    }
+
+    /// Les deux réponses, gardées pour que le bandeau permanent puisse être
+    /// rendu dès que l'une OU l'autre arrive — sans attendre la plus lente.
+    var LAST = {};
+
+    // LE BANDEAU. Quatre chiffres, choisis pour répondre à quatre questions
+    // dans cet ordre : est-ce que les gens comprennent l'app (true users),
+    // est-ce qu'ils reviennent (D7), combien sont là cette semaine (WAU),
+    // et combien aujourd'hui (DAU). Le reste est du détail, et le détail a
+    // ses onglets.
+    function renderKpi() {
+      var s = LAST.stats, o = LAST.onboarding;
+      if (!s) return;
+      var r = s.retention || {};
+      var out = "";
+      if (o) {
+        var base = o.installs > 0 ? o.installs : o.accounts;
+        var rate = base ? Math.round(100 * o.true_users / base) : 0;
+        out += '<div class="tile"><div class="v accent">' + rate + ' %</div>'
+             + '<div class="l">true users</div><div class="d">' + o.true_users
+             + " sur " + base + (o.installs > 0 ? " installations" : " comptes") + "</div></div>";
+      } else {
+        out += tile("—", "true users", "chargement…");
+      }
+      out += tile(r.d7_pct === null || r.d7_pct === undefined ? "—" : r.d7_pct + " %",
+                  "rétention D7", "reviennent après une semaine");
+      out += tile(s.wau, "WAU", "actifs sur 7 jours");
+      out += tile(s.dau, "DAU", "actifs aujourd'hui");
+      document.getElementById("tilesKpi").innerHTML = out;
     }
 
     function tile(value, label, detail) {
@@ -335,6 +417,8 @@
 
     function onboardingBlock(o) {
       if (!o) return;
+      LAST.onboarding = o;
+      renderKpi();
       // Tant que la version instrumentée n'est pas déployée, `installs` vaut
       // 0. On bascule alors sur les comptes créés comme base — et on le DIT,
       // parce qu'un taux calculé sur une autre base n'est pas le même taux.
@@ -661,27 +745,29 @@
       }
       document.getElementById("gate").style.display = "none";
       document.getElementById("app").style.display = "block";
+      tabFromHash();
       document.getElementById("stamp").textContent =
         "Généré le " + new Date(s.generated_at).toLocaleString("fr-FR");
 
-      document.getElementById("tiles").innerHTML =
-        tile(s.users_total, "utilisateurs", "+" + s.users_new_7d + " sur 7 j") +
-        tile(s.activation_10min_pct + " %", "1er set ≤ 10 min", s.never_tried + " n'ont jamais essayé") +
-        tile(s.invites_claimed + "/" + s.invites_created, "invites SMS réclamées") +
-        tile(s.battles_finished + "/" + s.battles_total, "battles jouées") +
-        tile(s.dms_total + " · " + s.chat_total, "DMs · vestiaires");
+      LAST.stats = s;
+      renderKpi();
 
       // Actif = toute action dans l'app (set, défi, DM, vestiaires, trace)
       var r = s.retention || {};
       function pct(p) { return (p === null || p === undefined) ? "—" : p + " %"; }
       document.getElementById("tilesRetention").innerHTML =
-        tile(s.dau, "DAU", "actifs aujourd'hui") +
-        tile(s.wau, "WAU", "actifs sur 7 jours") +
         tile(s.mau, "MAU", "actifs sur 30 jours") +
         tile(pct(r.d1_pct), "rétention D1", "revenus le lendemain · " + r.d1_n + " éligibles") +
         tile(pct(r.d7_pct), "rétention D7", "actifs entre J+7 et J+13 · " + r.d7_n + " éligibles") +
         tile(pct(r.d30_pct), "rétention D30",
-             r.d30_n ? "actifs entre J+30 et J+44 · " + r.d30_n + " éligibles" : "encore trop tôt");
+             r.d30_n ? "actifs entre J+30 et J+44 · " + r.d30_n + " éligibles" : "encore trop tôt") +
+        tile(s.activation_10min_pct + " %", "1er set ≤ 10 min", s.never_tried + " n'ont jamais essayé");
+
+      document.getElementById("tilesGrowth").innerHTML =
+        tile(s.invites_claimed + "/" + s.invites_created, "invites SMS réclamées") +
+        tile(s.battles_finished + "/" + s.battles_total, "battles jouées") +
+        tile(s.dms_total + " · " + s.chat_total, "DMs · vestiaires") +
+        tile("+" + s.users_new_7d, "inscrits sur 7 jours");
 
       storageBlock(s.storage);
 
@@ -746,6 +832,38 @@
              + "</td><td>" + d.dms + "</td><td>" + d.chat + "</td></tr>";
       }).join("");
     }
+
+    // Onglets. L'ancre de l'URL sélectionne l'onglet : #onboarding, #activite,
+    // #croissance, #technique — et #users ouvre l'onglet Onboarding puis
+    // défile jusqu'à la table, parce que c'est le lien que j'ai déjà donné.
+    var TABS = ["onboarding", "activite", "croissance", "technique"];
+
+    function showTab(name, scrollTo) {
+      if (TABS.indexOf(name) < 0) name = "onboarding";
+      document.querySelectorAll(".tabs button").forEach(function (b) {
+        b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false");
+      });
+      document.querySelectorAll(".panel").forEach(function (p) {
+        p.classList.toggle("on", p.dataset.panel === name);
+      });
+      if (scrollTo) {
+        var el = document.getElementById(scrollTo);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    function tabFromHash() {
+      var h = (location.hash || "").replace("#", "");
+      if (h === "users") { showTab("onboarding", "users"); return; }
+      showTab(h || "onboarding");
+    }
+
+    document.querySelectorAll(".tabs button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        location.hash = b.dataset.tab;
+      });
+    });
+    window.addEventListener("hashchange", tabFromHash);
 
     function showGate(err) {
       document.getElementById("app").style.display = "none";
